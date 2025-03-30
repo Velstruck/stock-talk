@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { HeroGeometric } from './ui/shape-landing-hero';
+import { HoverButton } from './ui/hover-button';
+import { CardSpotlight } from './ui/card-spotlight';
 
 const LandingPage = () => {
     const navigate = useNavigate();
@@ -11,12 +13,12 @@ const LandingPage = () => {
                 title1="Real-Time Stock"
                 title2="Market Insights"
             >
-                <button
+                <HoverButton
                     onClick={() => navigate('/auth')}
-                    className="px-8 py-3 text-lg font-semibold rounded-lg bg-gradient-to-r from-blue-500 to-emerald-500 hover:from-blue-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200 shadow-lg mt-8"
+                    className="mt-8 text-lg font-semibold bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 text-transparent bg-clip-text"
                 >
                     Get Started
-                </button>
+                </HoverButton>
             </HeroGeometric>
 
             <div className="container mx-auto px-4 py-16">
@@ -40,10 +42,10 @@ const LandingPage = () => {
 };
 
 const FeatureCard = ({ title, description }) => (
-    <div className="p-6 rounded-xl bg-gray-800 bg-opacity-50 backdrop-blur-lg border border-gray-700 hover:border-gray-600 transition-all duration-200">
-        <h3 className="text-xl font-semibold mb-3 text-blue-400">{title}</h3>
-        <p className="text-gray-400">{description}</p>
-    </div>
+    <CardSpotlight className="h-full">
+        <h3 className="text-xl font-semibold mb-3 bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 text-transparent bg-clip-text">{title}</h3>
+        <p className="text-white">{description}</p>
+    </CardSpotlight>
 );
 
 export default LandingPage;
