@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import io from 'socket.io-client';
+import { getUserProfile, searchStocks, getStockQuote, getStockIntraday, getStockNews, addToWatchlist } from '@/lib/api';
 import { RippleButton } from './magicui/ripple-button';
 
 import { Line } from 'react-chartjs-2';
@@ -49,7 +49,7 @@ const Dashboard = () => {
         }
 
         // Connect to WebSocket
-        const socket = io('http://localhost:5000');
+        const socket = io(import.meta.env.VITE_API_BASE_URL);
 
         // Fetch user's watchlist
         fetchWatchlist();
@@ -59,22 +59,27 @@ const Dashboard = () => {
 
     const fetchWatchlist = async () => {
         try {
-            const token = localStorage.getItem('userToken');
-            const response = await axios.get('http://localhost:5000/api/users/profile', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setWatchlist(response.data.watchlist);
+            const response = await getUserProfile();
+            if (response.data && response.data.watchlist) {
+                setWatchlist(response.data.watchlist);
+            } else {
+                setWatchlist([]);
+                console.warn('Watchlist data not found in response');
+            }
         } catch (error) {
             console.error('Error fetching watchlist:', error);
+            setWatchlist([]);
+            // Handle specific error cases
+            if (error.response?.status === 401) {
+                navigate('/auth');
+            }
         }
     };
 
     const handleSearch = async () => {
         try {
             const token = localStorage.getItem('userToken');
-            const response = await axios.get(`http://localhost:5000/api/stocks/search/${searchQuery}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await searchStocks(searchQuery);
             setSearchResults(response.data.bestMatches || []);
         } catch (error) {
             console.error('Error searching stocks:', error);
@@ -85,15 +90,9 @@ const Dashboard = () => {
         try {
             const token = localStorage.getItem('userToken');
             const [quoteResponse, intradayResponse, newsResponse] = await Promise.all([
-                axios.get(`http://localhost:5000/api/stocks/quote/${symbol}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                }),
-                axios.get(`http://localhost:5000/api/stocks/intraday/${symbol}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                }),
-                axios.get(`http://localhost:5000/api/stocks/news/${symbol}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                })
+                getStockQuote(symbol),
+                getStockIntraday(symbol),
+                getStockNews(symbol)
             ]);
 
             setSelectedStock(symbol);
@@ -124,10 +123,7 @@ const Dashboard = () => {
     const handleWatchlist = async (symbol, action) => {
         try {
             const token = localStorage.getItem('userToken');
-            await axios.post('http://localhost:5000/api/users/watchlist', 
-                { symbol, action },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            await addToWatchlist({ symbol, action });
             fetchWatchlist();
         } catch (error) {
             console.error('Error updating watchlist:', error);
@@ -144,7 +140,10 @@ const Dashboard = () => {
         <div className="min-h-screen bg-[#030303] text-white">
             <nav className="bg-black/40 backdrop-blur-xl p-4 border-b border-white/[0.05]">
                 <div className="container mx-auto flex justify-between items-center">
-                    <h1 onClick={() => navigate('/dashboard')} className="text-2xl font-bold cursor-pointer">Stock Talk</h1>
+                    <div onClick={() => navigate('/dashboard')} className="flex items-center cursor-pointer">
+                        <img src="/STOCK TALK-LOGO.png" alt="Stock Talk Logo" className="h-10 w-10" />
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 bg-clip-text text-transparent">Stock Talk</h1>
+                    </div>
                     <RippleButton
                         onClick={handleLogout}
                         className="px-6 py-2 text-slate-200 bg-red-500/20 border-2 border-red-500/50 rounded-lg hover:bg-red-500/30 transition"
@@ -155,15 +154,15 @@ const Dashboard = () => {
                 </div>
             </nav>
 
-            <div className="container mx-auto p-4 space-y-6">
+            <div className="container mx-auto p-3 md:p-4 space-y-4 md:space-y-6">
                 <HeroPill
                     announcement="👋 Welcome"
                     label={`Hi, ${userName}`}
                 />
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 {/* Search and Stock Info Section */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-black/40 backdrop-blur-xl p-6 rounded-lg border border-white/[0.05]">
+                <div className="lg:col-span-2 space-y-4 md:space-y-6">
+                    <div className="bg-black/40 backdrop-blur-xl p-4 md:p-6 rounded-lg border border-white/[0.05]">
                         <div className="flex gap-4 mb-4">
                             <input
                                 type="text"
@@ -198,7 +197,7 @@ const Dashboard = () => {
                                                 e.stopPropagation();
                                                 handleWatchlist(result['1. symbol'], 'add');
                                             }}
-                                            className="px-4 py-2 bg-green-500/20 border-2 border-green-500/50 rounded-lg hover:bg-green-500/30 transition"
+                                            className="px-4 py-2 bg-green-500/20 border-2 border-green-500/50 rounded-lg hover:bg-green-500/30 transition text-slate-200"
                                             rippleColor="#22c55e"
                                         >
                                             Add to Watchlist
@@ -210,8 +209,8 @@ const Dashboard = () => {
                     </div>
 
                     {selectedStock && stockData && (
-                        <div className="bg-black/40 backdrop-blur-xl p-6 rounded-lg border border-white/[0.05]">
-                            <h2 className="text-2xl font-bold mb-4">{selectedStock}</h2>
+                        <div className="bg-black/40 backdrop-blur-xl p-4 md:p-6 rounded-lg border border-white/[0.05]">
+                            <h2 className="text-xl md:text-2xl font-bold mb-4">{selectedStock}</h2>
                             <div className="grid grid-cols-2 gap-4 mb-6">
                                 <div className="p-4 bg-black/40 backdrop-blur-xl border border-white/[0.05] rounded">
                                     <p className="text-white/70">Price</p>
@@ -228,10 +227,11 @@ const Dashboard = () => {
                             </div>
 
                             {chartData && (
-                                <div className="mt-6">
+                                <div className="mt-4 md:mt-6 h-[250px] md:h-[300px]">
                                     <Line
                                         data={chartData}
                                         options={{
+                                            maintainAspectRatio: false,
                                             responsive: true,
                                             plugins: {
                                                 legend: {
@@ -251,9 +251,9 @@ const Dashboard = () => {
                 </div>
 
                 {/* Watchlist and News Section */}
-                <div className="space-y-6">
-                    <div className="bg-black/40 backdrop-blur-xl p-6 rounded-lg border border-white/[0.05]">
-                        <h2 className="text-xl font-bold mb-4">Watchlist</h2>
+                <div className="space-y-4 md:space-y-6">
+                    <div className="bg-black/40 backdrop-blur-xl p-4 md:p-6 rounded-lg border border-white/[0.05]">
+                        <h2 className="text-xl font-bold mb-4 bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 bg-clip-text text-transparent">Watchlist</h2>
                         <div className="space-y-3">
                             {watchlist.map((item) => (
                                 <div
@@ -288,9 +288,9 @@ const Dashboard = () => {
                                         href={item.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="block p-4 bg-black/40 backdrop-blur-xl border border-white/[0.05] rounded-lg hover:bg-black/60 transition"
+                                        className="block p-4 bg-black/40 backdrop-blur-xl border border-white/[0.05] rounded-lg hover:bg-black/60 transition hover:brightness-75"
                                     >
-                                        <h3 className="font-semibold mb-2 text-white">{item.title}</h3>
+                                        <h3 className="font-semibold mb-2 text-white hover:underline">{item.title}</h3>
                                         <p className="text-sm text-white/70">{item.summary}</p>
                                     </a>
                                 ))}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { login, register } from '@/lib/api';
 import { ShineBorder } from './magicui/shine-border';
 import { RippleButton } from './magicui/ripple-button';
 import { IoArrowBack } from 'react-icons/io5';
@@ -20,8 +20,7 @@ const Auth = () => {
         setError('');
 
         try {
-            const endpoint = isLogin ? '/api/users/login' : '/api/users/register';
-            const response = await axios.post(`http://localhost:5000${endpoint}`, formData);
+            const response = await (isLogin ? login(formData) : register(formData));
 
             if (response.data.token) {
                 localStorage.setItem('userToken', response.data.token);
